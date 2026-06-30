@@ -1,3 +1,4 @@
+//
 // this contains the dda line drawing algorithm written here
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -26,23 +27,28 @@ void main(){
 )";
 
 int return_something(std::vector<int>& vertices , int start_x , int finish_x , int start_y , int finish_y){
+    
     int dx = finish_x - start_x;
     int dy = finish_y - start_y;
-    int steps = std::max(abs(dx) , abs(dy));
-    float x_increment = (float)dx/steps;
-    float y_increment = (float)dy/steps;
-    std::cout<<steps<<"\t"<<x_increment<<"\t"<<y_increment<<"\n"; 
-    float x_init = start_x;
-    float y_init = start_y;
-    for (int i=0; i<=steps ; i++){
-	vertices.push_back(std::round(x_init));
-	vertices.push_back(std::round(y_init));
-	x_init = (x_init + x_increment);
-	y_init = (y_init + y_increment);
+    int decision_param = 2*dy - dx;
+    int x_init = start_x;
+    int y_init = start_y;
+    int i =0;
+    while(x_init <= finish_x){
+	i++;
+	vertices.push_back(x_init);
+	vertices.push_back(y_init);
+	if (decision_param  < 0){
+	    x_init += 1;
+	    decision_param  = decision_param + 2 * dy;
+	}
+	else {
+	    x_init += 1;
+	    y_init += 1;
+	    decision_param = decision_param + 2*dy - 2*dx;
+	}
     }
-    std::cout<<vertices[vertices.size()-2]<<"\t"<<vertices[vertices.size()-1]<<std::endl;
-    std::cout<<vertices[vertices.size()-3]<<"\t"<<vertices[vertices.size()-4]<<std::endl;
-    return steps;	
+    return i;
 }
 
 // compilerShader creates an empty slot in the GPU and and returns an ID. OpenGL uses ID not pointers for GPU realted stuff.
@@ -128,7 +134,7 @@ int main() {
         glBindVertexArray(VAO);
 	int colorLocation = glGetUniformLocation(prog, "uColor");
 	glUniform4f(colorLocation , red , green , blue , 1.0f);
-	glDrawArrays(GL_POINTS, 0, steps+1);
+	glDrawArrays(GL_POINTS, 0, steps);
 	int offsetLocation = glGetUniformLocation(prog, "offset");
 
         glfwSwapBuffers(window);
