@@ -30,23 +30,23 @@ int return_something(std::vector<int>& vertices , int start_x , int finish_x , i
     
     int dx = finish_x - start_x;
     int dy = finish_y - start_y;
+    std::cout<<(float)(dy)/(float)(dx)<<std::endl;
     int decision_param = 2*dy - dx;
     int x_init = start_x;
     int y_init = start_y;
-    std::cout<<(float)(dy)/(float)(dx)<<std::endl;
     int i =0;
-    while(x_init <= finish_x){
+    while(y_init <= finish_y){
 	i++;
 	vertices.push_back(x_init);
 	vertices.push_back(y_init);
 	if (decision_param  < 0){
-	    x_init += 1;
-	    decision_param  = decision_param + 2 * dy;
+	    y_init += 1;
+	    decision_param  = decision_param + 2 * dx;
 	}
 	else {
 	    x_init += 1;
 	    y_init += 1;
-	    decision_param = decision_param + 2*dy - 2*dx;
+	    decision_param = decision_param + 2*dx - 2*dy;
 	}
     }
     return i;
@@ -91,7 +91,7 @@ int main() {
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
     glViewport(0,0,1920 , 1080);
     std::vector<int> vertices;
-    int steps = return_something(vertices , 0,1920, 0 , 1080);
+    int steps = return_something(vertices , 0,500, 0 ,800);
     std::vector<float> norm_vertices;
     for(int i=0 ; i< vertices.size(); i++){
 	float val_to_push;
@@ -150,5 +150,6 @@ int main() {
 
     return 0;
 }
+
 
 

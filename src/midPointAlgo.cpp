@@ -1,5 +1,5 @@
 //
-// this contains the dda line drawing algorithm written here
+// this contains the midpoint circle drawing algorithm written here
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -26,30 +26,27 @@ void main(){
 }
 )";
 
-int return_something(std::vector<int>& vertices , int start_x , int finish_x , int start_y , int finish_y){
+int return_something(std::vector<int>& vertices , int radius){
     
-    int dx = finish_x - start_x;
-    int dy = finish_y - start_y;
-    int decision_param = 2*dy - dx;
-    int x_init = start_x;
-    int y_init = start_y;
-    std::cout<<(float)(dy)/(float)(dx)<<std::endl;
+    int decision_param = 1 - radius;
+    int x_init = 0;
+    int y_init = radius;
     int i =0;
-    while(x_init <= finish_x){
+    while(x_init < y_init){
 	i++;
 	vertices.push_back(x_init);
 	vertices.push_back(y_init);
 	if (decision_param  < 0){
-	    x_init += 1;
-	    decision_param  = decision_param + 2 * dy;
+	    x_init +=1;
+	    decision_param  = decision_param + 2 * x_init + 1;
 	}
 	else {
 	    x_init += 1;
-	    y_init += 1;
-	    decision_param = decision_param + 2*dy - 2*dx;
+	    y_init -= 1;
+	    decision_param = decision_param + 2*x_init + 1 - 2*y_init;
 	}
     }
-    return i;
+    return i*8;
 }
 
 // compilerShader creates an empty slot in the GPU and and returns an ID. OpenGL uses ID not pointers for GPU realted stuff.
@@ -83,26 +80,62 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    GLFWwindow* window = glfwCreateWindow(1920 , 1080, "My Rectangle", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1920 , 1080, "My Circle", nullptr, nullptr);
     int width, height;
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-    glViewport(0,0,1920 , 1080);
+    glViewport(0,0,fbWidth , fbHeight);
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
     std::vector<int> vertices;
-    int steps = return_something(vertices , 0,1920, 0 , 1080);
+    int radius = 500;
+    int steps = return_something(vertices , radius);
+    int actual_size = vertices.size();
+
+    // ---- FIX 1: pure scale normalization, no -1 offset, so world (0,0) -> NDC (0,0) ----
+    // ---- FIX 2: divide both x and y by the SAME dimension (window width) to avoid
+    //             squashing the circle into an ellipse on a non-square window ----
     std::vector<float> norm_vertices;
     for(int i=0 ; i< vertices.size(); i++){
-	float val_to_push;
-	if(i % 2 == 0){
-	val_to_push = float(vertices[i])/1920.0f * 2 -1 ;
-	}
-	else{
-	val_to_push = float(vertices[i])/1080.0f * 2 -1 ;
-	}
+	float val_to_push = float(vertices[i]) / 1080.0f * 2.0f; // same divisor for x and y
 	norm_vertices.push_back(val_to_push);
     }
+
+    // generate the other 7 octants by reflecting the first octant (now correctly
+    // centered at NDC origin, so simple negation/swap works as true mirrors)
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(-norm_vertices[i]);
+	norm_vertices.push_back(-norm_vertices[i+1]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(-norm_vertices[i]);
+	norm_vertices.push_back(norm_vertices[i+1]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(norm_vertices[i]);
+	norm_vertices.push_back(-norm_vertices[i+1]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(norm_vertices[i+1]);
+	norm_vertices.push_back(norm_vertices[i]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(-norm_vertices[i+1]);
+	norm_vertices.push_back(-norm_vertices[i]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(-norm_vertices[i+1]);
+	norm_vertices.push_back(norm_vertices[i]);
+    }
+    for (int i=0 ; i< actual_size; i+=2){
+	norm_vertices.push_back(norm_vertices[i+1]);
+	norm_vertices.push_back(-norm_vertices[i]);
+    }
+
+    int total_points = norm_vertices.size() / 2;
+
     // Create VAO and VBO
     unsigned int VAO, VBO; //vertex buffer object and vertex array object
     glGenVertexArrays(1, &VAO);
@@ -135,8 +168,13 @@ int main() {
         glBindVertexArray(VAO);
 	int colorLocation = glGetUniformLocation(prog, "uColor");
 	glUniform4f(colorLocation , red , green , blue , 1.0f);
-	glDrawArrays(GL_POINTS, 0, steps);
+
+	// FIX 3: draw the actual full vertex count (all 8 octants), not just the
+	// first-octant "steps" count returned by return_something()
+	glDrawArrays(GL_POINTS, 0, total_points);
+
 	int offsetLocation = glGetUniformLocation(prog, "offset");
+	glUniform2f(offsetLocation, 0.0f, 0.0f);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -150,5 +188,3 @@ int main() {
 
     return 0;
 }
-
-
